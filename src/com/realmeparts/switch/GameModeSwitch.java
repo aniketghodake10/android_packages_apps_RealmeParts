@@ -19,6 +19,11 @@ package com.realmeparts;
 
 import android.app.NotificationManager;
 import android.content.Context;
+import android.os.IBinder;
+import android.os.Parcel;
+import android.os.RemoteException;
+import android.os.ServiceManager;
+import android.util.Log;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.SystemProperties;
@@ -35,6 +40,8 @@ public class GameModeSwitch implements OnPreferenceChangeListener {
     private static Context mContext;
     private static NotificationManager mNotificationManager;
     private static int userSelectedDndMode;
+
+    private static IBinder SF = ServiceManager.getService("SurfaceFlinger");
 
     public GameModeSwitch(Context context) {
         mContext = context;
@@ -94,6 +101,20 @@ public class GameModeSwitch implements OnPreferenceChangeListener {
             Toast.makeText(mContext, "GameMode is deactivated. ", Toast.LENGTH_SHORT).show();
     }
 
+    public void setForcedRefreshRate(Object value) {
+        int fps = Integer.parseInt((String) value);
+        Parcel var10000 = Parcel.obtain();
+        Parcel data = var10000;
+        data.writeInterfaceToken("android.ui.ISurfaceComposer");
+        data.writeInt(fps);
+        try {
+            SF.transact(1035, data, (Parcel)null, 0);
+        } catch (RemoteException e) {
+            // nothing we can do
+        }
+        data.recycle();
+    }
+
     public boolean onPreferenceChange(Preference preference, Object newValue) {
         Boolean enabled = (Boolean) newValue;
         Utils.writeValue(getFile(), enabled ? "1" : "0");
@@ -102,6 +123,7 @@ public class GameModeSwitch implements OnPreferenceChangeListener {
         SystemProperties.set("perf_profile", enabled ? "1" : "0");
         DeviceSettings.mBatterySavingModeSwitch.setEnabled(!enabled);
         GameModeDND();
+        setForcedRefreshRate(newValue);
         return true;
     }
 }
